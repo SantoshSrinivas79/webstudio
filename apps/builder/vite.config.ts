@@ -86,8 +86,12 @@ export default defineConfig(({ mode }) => {
       proxy: {},
 
       https: {
-        key: readFileSync("../../https/privkey.pem"),
-        cert: readFileSync("../../https/fullchain.pem"),
+        key: readFileSync(
+          "/home/isha/repos/webstudio/https/wstd.notion.lol/privkey1.pem"
+        ),
+        cert: readFileSync(
+          "/home/isha/repos/webstudio/https/wstd.notion.lol/fullchain1.pem"
+        ),
       },
       cors: ((
         req: IncomingMessage,

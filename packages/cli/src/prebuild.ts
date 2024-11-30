@@ -434,7 +434,7 @@ export const prebuild = async (options: {
   const assetsToDownload: Promise<void>[] = [];
 
   if (options.assets === true) {
-    const appDomain = options.preview ? "wstd.work" : "wstd.io";
+    const appDomain = options.preview ? "wstd.notion.lol" : "wstd.notion.lol";
     const domain =
       siteData.build.deployment?.assetsDomain ??
       // fallback to project domain should not be used since 2025-01-01 (for now is used for backward compatibility)
