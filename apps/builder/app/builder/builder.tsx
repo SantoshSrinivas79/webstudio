@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useStore } from "@nanostores/react";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { usePublish, $publisher } from "~/shared/pubsub";
@@ -19,6 +19,7 @@ import { Topbar } from "./features/topbar";
 import { Footer } from "./features/footer";
 import {
   CanvasIframe,
+  CanvasToolsContainer,
   useReadCanvasRect,
   Workspace,
 } from "./features/workspace";
@@ -32,10 +33,10 @@ import {
   $authTokenPermissions,
   $publisherHost,
   $imageLoader,
-  $textEditingInstanceSelector,
   $isDesignMode,
   $isContentMode,
   $userPlanFeatures,
+  subscribeModifierKeys,
 } from "~/shared/nano-states";
 import { $settings, type Settings } from "./shared/client-settings";
 import { builderUrl, getCanvasUrl } from "~/shared/router-utils";
@@ -56,7 +57,6 @@ import {
 import { CloneProjectDialog } from "~/shared/clone-project";
 import type { TokenPermissions } from "@webstudio-is/authorization-token";
 import { useToastErrors } from "~/shared/error/toast-error";
-import { canvasApi } from "~/shared/canvas-api";
 import { loadBuilderData, setBuilderData } from "~/shared/builder-data";
 import { initBuilderApi } from "~/shared/builder-api";
 import { updateWebstudioData } from "~/shared/instance-utils";
@@ -64,10 +64,13 @@ import { migrateWebstudioDataMutable } from "~/shared/webstudio-data-migrator";
 import { Loading, LoadingBackground } from "./shared/loading";
 import { mergeRefs } from "@react-aria/utils";
 import { CommandPanel } from "./features/command-panel";
+
 import {
   initCopyPaste,
   initCopyPasteForContentEditMode,
 } from "~/shared/copy-paste/init-copy-paste";
+import { useInertHandlers } from "./shared/inert-handlers";
+import { TextToolbar } from "./features/workspace/canvas-tools/text-toolbar";
 
 registerContainers();
 
@@ -93,7 +96,6 @@ const SidePanel = ({
 }: SidePanelProps) => {
   return (
     <Box
-      id="jopa"
       as="aside"
       css={{
         position: "relative",
@@ -115,13 +117,15 @@ const SidePanel = ({
   );
 };
 
-const Main = ({ children }: { children: ReactNode }) => (
+const Main = ({ children, css }: { children: ReactNode; css?: CSS }) => (
   <Flex
     as="main"
     direction="column"
     css={{
       gridArea: "main",
       position: "relative",
+      isolation: "isolate",
+      ...css,
     }}
   >
     {children}
@@ -320,10 +324,12 @@ export const Builder = ({
       // @todo we need to forward the events from canvas to builder and avoid importing this
       // in both places
       initCopyPaste(abortController);
+      subscribeModifierKeys({ signal: abortController.signal });
     }
 
     if (isContentMode) {
       initCopyPasteForContentEditMode(abortController);
+      subscribeModifierKeys({ signal: abortController.signal });
     }
 
     return () => {
@@ -344,81 +350,21 @@ export const Builder = ({
 
   const canvasUrl = getCanvasUrl();
 
-  /**
-   * Prevents Lexical text editor from stealing focus during rendering.
-   * Sets the inert attribute on the canvas body element and disables the text editor.
-   *
-   * This must be done synchronously to avoid the following issue:
-   *
-   * 1. Text editor is in edit state.
-   * 2. User focuses on the builder (e.g., clicks any input).
-   * 3. The text editor blur event triggers, causing a rerender on data change (data saved in onBlur).
-   * 4. Text editor rerenders, stealing focus from the builder.
-   * 5. Inert attribute is set asynchronously, but focus is already lost.
-   *
-   * Synchronous focusing and setInert prevent the text editor from focusing on render.
-   * This cannot be handled inside the canvas because the text editor toolbar is in the builder and focus events in the canvas should be ignored.
-   *
-   * Use onPointerDown instead of onFocus because Radix focus lock triggers on text edit blur
-   * before the focusin event when editing text inside a Radix dialog.
-   */
-  const handlePointerDown = useCallback((event: React.PointerEvent) => {
-    // Ignore toolbar focus events. See the onFocus handler in text-toolbar.tsx
-    if (false === event.defaultPrevented) {
-      canvasApi.setInert();
-      $textEditingInstanceSelector.set(undefined);
-    }
-  }, []);
-
-  /**
-   * Prevent Radix from stealing focus during editing in the style sources
-   * For example, when the user select or create new style source item inside a dialog.
-   */
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (event.target instanceof HTMLInputElement) {
-      canvasApi.setInert();
-    }
-  }, []);
-
-  /**
-   * Prevent Radix from stealing focus during editing in the settings panel.
-   * For example, when the user modifies the text content of an H1 element inside a dialog.
-   */
-  const handleInput = useCallback(() => {
-    canvasApi.setInert();
-  }, []);
+  const inertHandlers = useInertHandlers();
 
   return (
     <TooltipProvider>
       <div
         style={{ display: "contents" }}
-        onPointerDown={handlePointerDown}
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
+        onPointerDown={inertHandlers.onPointerDown}
+        onInput={inertHandlers.onInput}
+        onKeyDown={inertHandlers.onKeyDown}
       >
         <ChromeWrapper
           isPreviewMode={isPreviewMode}
           navigatorLayout={navigatorLayout}
         >
           <ProjectSettings />
-          <Topbar
-            project={project}
-            hasProPlan={userPlanFeatures.hasProPlan}
-            css={{ gridArea: "header" }}
-            loading={
-              <LoadingBackground
-                // Looks nicer when topbar is already visible earlier, so user has more sense of progress.
-                show={
-                  loadingState.readyStates.get("dataLoadingState")
-                    ? false
-                    : true
-                }
-              />
-            }
-          />
-          <SidePanel gridArea="sidebar">
-            <SidebarLeft publish={publish} />
-          </SidePanel>
           <Main>
             <Workspace onTransitionEnd={onTransitionEnd}>
               {dataLoadingState === "loaded" && (
@@ -432,6 +378,10 @@ export const Builder = ({
 
             {isDesignMode && <AiCommandBar />}
           </Main>
+
+          <SidePanel gridArea="sidebar">
+            <SidebarLeft publish={publish} />
+          </SidePanel>
           <SidePanel
             gridArea="inspector"
             isPreviewMode={isPreviewMode}
@@ -451,6 +401,27 @@ export const Builder = ({
           >
             <Inspector navigatorLayout={navigatorLayout} />
           </SidePanel>
+          <Main css={{ pointerEvents: "none" }}>
+            <CanvasToolsContainer />
+          </Main>
+          <Topbar
+            project={project}
+            hasProPlan={userPlanFeatures.hasProPlan}
+            css={{ gridArea: "header" }}
+            loading={
+              <LoadingBackground
+                // Looks nicer when topbar is already visible earlier, so user has more sense of progress.
+                show={
+                  loadingState.readyStates.get("dataLoadingState")
+                    ? false
+                    : true
+                }
+              />
+            }
+          />
+          <Main css={{ pointerEvents: "none" }}>
+            <TextToolbar />
+          </Main>
           {isPreviewMode === false && <Footer />}
           <CloneProjectDialog
             isOpen={isCloneDialogOpen}

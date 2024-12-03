@@ -5,21 +5,20 @@ import {
   $instances,
   $isPreviewMode,
   $dragAndDropState,
+  $canvasToolsVisible,
 } from "~/shared/nano-states";
 import {
   CollaborativeInstanceOutline,
   HoveredInstanceOutline,
   SelectedInstanceOutline,
 } from "./outline";
-import { TextToolbar } from "./text-toolbar";
+
 import { Label } from "./outline/label";
 import { Outline } from "./outline/outline";
 import { useSubscribeDragAndDropState } from "./use-subscribe-drag-drop-state";
-import { ResizeHandles } from "./resize-handles";
-import { MediaBadge } from "./media-badge";
 import { applyScale } from "./outline";
 import { $scale } from "~/builder/shared/nano-states";
-import { BlockChildHoveredInstanceOutline } from "./outline/editable-block-instance-outline";
+import { BlockChildHoveredInstanceOutline } from "./outline/block-instance-outline";
 
 const containerStyle = css({
   position: "absolute",
@@ -37,11 +36,16 @@ const containerStyle = css({
 export const CanvasTools = () => {
   // @todo try to setup cross-frame atoms to avoid this
   useSubscribeDragAndDropState();
-
+  const canvasToolsVisible = useStore($canvasToolsVisible);
   const isPreviewMode = useStore($isPreviewMode);
   const dragAndDropState = useStore($dragAndDropState);
   const instances = useStore($instances);
   const scale = useStore($scale);
+
+  if (!canvasToolsVisible) {
+    return;
+  }
+
   if (
     dragAndDropState.isDragging &&
     dragAndDropState.placementIndicator !== undefined
@@ -67,15 +71,11 @@ export const CanvasTools = () => {
 
   return (
     <>
-      <MediaBadge />
-      <ResizeHandles />
       {isPreviewMode === false && (
         <>
           <SelectedInstanceOutline />
           <HoveredInstanceOutline />
           <CollaborativeInstanceOutline />
-          <TextToolbar />
-
           <BlockChildHoveredInstanceOutline />
         </>
       )}

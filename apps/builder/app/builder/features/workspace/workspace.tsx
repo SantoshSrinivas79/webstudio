@@ -10,6 +10,8 @@ import { $textEditingInstanceSelector } from "~/shared/nano-states";
 import { CanvasTools } from "./canvas-tools";
 import { useSetCanvasWidth } from "../breakpoints";
 import { selectInstance } from "~/shared/awareness";
+import { ResizeHandles } from "./canvas-tools/resize-handles";
+import { MediaBadge } from "./canvas-tools/media-badge";
 
 const workspaceStyle = css({
   flexGrow: 1,
@@ -83,7 +85,6 @@ const useOutlineStyle = () => {
 
   return {
     ...style,
-    pointerEvents: "none",
     width:
       canvasWidth === undefined ? "100%" : (canvasWidth ?? 0) * (scale / 100),
   } as const;
@@ -96,13 +97,13 @@ type WorkspaceProps = {
 
 export const Workspace = ({ children, onTransitionEnd }: WorkspaceProps) => {
   const canvasStyle = useCanvasStyle();
-  const outlineStyle = useOutlineStyle();
   const workspaceRef = useMeasureWorkspace();
   useSetCanvasWidth();
   const handleWorkspaceClick = () => {
     selectInstance(undefined);
     $textEditingInstanceSelector.set(undefined);
   };
+  const outlineStyle = useOutlineStyle();
 
   return (
     <>
@@ -120,11 +121,28 @@ export const Workspace = ({ children, onTransitionEnd }: WorkspaceProps) => {
         </div>
         <div
           data-name="canvas-tools-wrapper"
-          className={canvasContainerStyle()}
+          className={canvasContainerStyle({ css: { pointerEvents: "none" } })}
           style={outlineStyle}
         >
-          <CanvasTools />
+          <MediaBadge />
+          <ResizeHandles />
         </div>
+      </div>
+    </>
+  );
+};
+
+export const CanvasToolsContainer = () => {
+  const outlineStyle = useOutlineStyle();
+
+  return (
+    <>
+      <div
+        data-name="canvas-tools-wrapper"
+        className={canvasContainerStyle()}
+        style={outlineStyle}
+      >
+        <CanvasTools />
       </div>
       <Toaster />
     </>
