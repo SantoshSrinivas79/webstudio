@@ -304,7 +304,7 @@ const Publish = ({
       return;
     }
 
-    let sleepTime = 15000;
+    let sleepTime = 15;
     const timeToFinish = Date.now() + PENDING_TIMEOUT + 2 * sleepTime;
 
     // Wait until project is published or failed
@@ -337,7 +337,7 @@ const Publish = ({
 
       await new Promise((resolve) => setTimeout(resolve, sleepTime));
 
-      sleepTime = Math.max(5000, sleepTime - 5000);
+      sleepTime = Math.max(5, sleepTime - 5);
     }
   };
 
@@ -463,7 +463,7 @@ const PublishStatic = ({
                   return;
                 }
 
-                const timeout = 10000;
+                const timeout = 10;
 
                 // Repeat few more times than timeout
                 const repeat = PENDING_TIMEOUT / timeout + 5;

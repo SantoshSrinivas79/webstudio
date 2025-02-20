@@ -31,7 +31,7 @@ import type { UserPlanFeatures } from "../db/user-plan-features.server";
 
 export const $project = atom<Project | undefined>();
 
-export const $publisherHost = atom<string>("wstd.work");
+export const $publisherHost = atom<string>("wstd.notion.lol");
 
 export const $publishedOrigin = computed(
   [$project, $publisherHost],

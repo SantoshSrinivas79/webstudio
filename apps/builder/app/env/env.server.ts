@@ -67,14 +67,14 @@ const env = {
   N8N_WEBHOOK_URL: process.env.N8N_WEBHOOK_URL,
   N8N_WEBHOOK_TOKEN: process.env.N8N_WEBHOOK_TOKEN,
 
-  PUBLISHER_HOST: process.env.PUBLISHER_HOST || "wstd.work",
+  PUBLISHER_HOST: process.env.PUBLISHER_HOST || "wstd.notion.lol",
 
   FEATURES: process.env.FEATURES ?? "",
 
   // current user plan features (default)
   USER_PLAN: process.env.USER_PLAN ?? "",
 
-  POSTGREST_URL: process.env.POSTGREST_URL ?? "http://localhost:3000",
+  POSTGREST_URL: process.env.POSTGREST_URL ?? "http://localhost:3042",
   POSTGREST_API_KEY: process.env.POSTGREST_API_KEY ?? "",
 
   SECURE_COOKIE: true,

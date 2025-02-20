@@ -55,7 +55,7 @@ const data = {
   user,
   templates: projects,
   userPlanFeatures,
-  publisherHost: "https://wstd.work",
+  publisherHost: "https://wstd.notion.lol",
   projects,
 };
 
