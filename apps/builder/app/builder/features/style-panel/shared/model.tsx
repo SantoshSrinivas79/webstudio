@@ -2,10 +2,12 @@ import { useMemo, useRef } from "react";
 import type { HtmlTags } from "html-tags";
 import { computed, type ReadableAtom } from "nanostores";
 import { useStore } from "@nanostores/react";
-import { properties } from "@webstudio-is/css-data";
+import { camelCaseProperty, propertiesData } from "@webstudio-is/css-data";
 import {
   compareMedia,
+  hyphenateProperty,
   toVarFallback,
+  type CssProperty,
   type StyleProperty,
   type StyleValue,
   type VarValue,
@@ -40,6 +42,7 @@ import {
   $selectedInstancePathWithRoot,
   type InstancePath,
 } from "~/shared/awareness";
+import type { InstanceSelector } from "~/shared/tree-utils";
 
 const $presetStyles = computed($registeredComponentMetas, (metas) => {
   const presetStyles = new Map<string, StyleValue>();
@@ -154,7 +157,10 @@ export const getDefinedStyles = ({
     const meta = metas.get(instance.component);
     for (const preset of Object.values(meta?.presetStyle ?? {})) {
       for (const styleDecl of preset) {
-        presetStyles.add(styleDecl);
+        presetStyles.add({
+          property: camelCaseProperty(styleDecl.property),
+          value: styleDecl.value,
+        });
       }
     }
     const styleSources = styleSourceSelections.get(instance.id)?.values;
@@ -176,7 +182,7 @@ export const getDefinedStyles = ({
       instanceStyles.add(styleDecl);
     }
     const inherited =
-      properties[styleDecl.property as keyof typeof properties]?.inherited ??
+      propertiesData[hyphenateProperty(styleDecl.property)]?.inherited ??
       // custom properties are always inherited
       true;
     if (
@@ -332,9 +338,9 @@ export const useStyleObjectModel = () => {
   return useStore($model);
 };
 
-export const useComputedStyleDecl = (property: StyleProperty) => {
+export const useComputedStyleDecl = (property: StyleProperty | CssProperty) => {
   const $store = useMemo(
-    () => createComputedStyleDeclStore(property),
+    () => createComputedStyleDeclStore(camelCaseProperty(property)),
     [property]
   );
   return useStore($store);
@@ -376,13 +382,27 @@ export const useParentComputedStyleDecl = (property: StyleProperty) => {
   return useStore($store);
 };
 
-export const useComputedStyles = (properties: StyleProperty[]) => {
+export const getInstanceStyleDecl = (
+  property: StyleProperty,
+  instanceSelector: InstanceSelector
+) => {
+  return getComputedStyleDecl({
+    model: $model.get(),
+    instanceSelector,
+    property,
+  });
+};
+
+export const useComputedStyles = (
+  properties: (StyleProperty | CssProperty)[]
+) => {
   // cache each computed style store
   const cachedStores = useRef(
     new Map<StyleProperty, ReadableAtom<ComputedStyleDecl>>()
   );
   const stores: ReadableAtom<ComputedStyleDecl>[] = [];
-  for (const property of properties) {
+  for (const multiCaseProperty of properties) {
+    const property = camelCaseProperty(multiCaseProperty);
     let store = cachedStores.current.get(property);
     if (store === undefined) {
       store = createComputedStyleDeclStore(property);

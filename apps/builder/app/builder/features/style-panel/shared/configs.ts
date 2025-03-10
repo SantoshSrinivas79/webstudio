@@ -1,12 +1,11 @@
-import type { StyleProperty } from "@webstudio-is/css-engine";
-import { keywordValues, properties } from "@webstudio-is/css-data";
+import type { CssProperty, StyleProperty } from "@webstudio-is/css-engine";
+import { camelCaseProperty, keywordValues } from "@webstudio-is/css-data";
 import { humanizeString } from "~/shared/string-utils";
 import type * as Controls from "../controls";
 
 type BaseStyleConfig = {
   label: string;
   property: StyleProperty;
-  mdnUrl?: string;
 };
 
 export type Control = keyof typeof Controls;
@@ -41,31 +40,29 @@ const getControl = (property: StyleProperty): Control => {
 
 const styleConfigCache = new Map<StyleProperty, StyleConfig>();
 
-export const styleConfigByName = (propertyName: StyleProperty): StyleConfig => {
-  const fromCache = styleConfigCache.get(propertyName);
+export const styleConfigByName = (
+  propertyName: StyleProperty | CssProperty
+): StyleConfig => {
+  // @todo propertyName is more narrow, only the props
+  // in that category, we are widening the type to include all properties
+  const property = camelCaseProperty(propertyName) as Property;
+  const fromCache = styleConfigCache.get(property);
 
   if (fromCache) {
     return fromCache;
   }
 
-  // @todo propertyName is more narrow, only the props
-  // in that category, we are widening the type to include all properties
-  const property = propertyName as Property;
-
   const keywords = keywordValues[property] || [];
   const label = humanizeString(property);
-  // property data does not exist for css custom properties
-  const propertyData = properties[property] ?? {};
 
   const result = {
     label,
     property,
     control: getControl(property),
     items: keywords.map((keyword) => ({ label: keyword, name: keyword })),
-    ...("mdnUrl" in propertyData && { mdnUrl: propertyData.mdnUrl }),
   };
 
-  styleConfigCache.set(propertyName, result);
+  styleConfigCache.set(property, result);
 
   return result;
 };

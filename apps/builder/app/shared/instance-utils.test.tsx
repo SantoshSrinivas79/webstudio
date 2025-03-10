@@ -420,8 +420,7 @@ describe("insert instance children", () => {
 });
 
 describe("insert webstudio fragment at", () => {
-  test("insert multiple instances", () => {
-    $instances.set(renderData(<$.Body ws:id="bodyId"></$.Body>).instances);
+  beforeEach(() => {
     $styleSourceSelections.set(new Map());
     $styleSources.set(new Map());
     $breakpoints.set(new Map());
@@ -430,6 +429,10 @@ describe("insert webstudio fragment at", () => {
     $resources.set(new Map());
     $props.set(new Map());
     $assets.set(new Map());
+  });
+
+  test("insert multiple instances", () => {
+    $instances.set(renderData(<$.Body ws:id="bodyId"></$.Body>).instances);
     insertWebstudioFragmentAt(
       renderTemplate(
         <>
@@ -447,6 +450,49 @@ describe("insert webstudio fragment at", () => {
         <$.Body ws:id="bodyId">
           <$.Heading ws:id={expect.any(String)}></$.Heading>
           <$.Paragraph ws:id={expect.any(String)}></$.Paragraph>
+        </$.Body>
+      ).instances
+    );
+  });
+
+  test("insert fragment after insertable", () => {
+    $instances.set(
+      renderData(
+        <$.Body ws:id="bodyId">
+          <$.Box ws:id="boxId"></$.Box>
+        </$.Body>
+      ).instances
+    );
+    insertWebstudioFragmentAt(
+      renderTemplate(<$.Heading ws:id="headingId"></$.Heading>),
+      {
+        parentSelector: ["boxId", "bodyId"],
+        position: "after",
+      }
+    );
+    expect($instances.get()).toEqual(
+      renderData(
+        <$.Body ws:id="bodyId">
+          <$.Box ws:id="boxId"></$.Box>
+          <$.Heading ws:id={expect.any(String)}></$.Heading>
+        </$.Body>
+      ).instances
+    );
+  });
+
+  test("insert fragment inside of body when configured to place after insertable", () => {
+    $instances.set(renderData(<$.Body ws:id="bodyId"></$.Body>).instances);
+    insertWebstudioFragmentAt(
+      renderTemplate(<$.Heading ws:id="headingId"></$.Heading>),
+      {
+        parentSelector: ["bodyId"],
+        position: "after",
+      }
+    );
+    expect($instances.get()).toEqual(
+      renderData(
+        <$.Body ws:id="bodyId">
+          <$.Heading ws:id={expect.any(String)}></$.Heading>
         </$.Body>
       ).instances
     );
@@ -1385,6 +1431,36 @@ describe("find closest insertable", () => {
     expect(findClosestInsertable(newBoxFragment)).toEqual({
       parentSelector: ["bodyId"],
       position: 2,
+    });
+  });
+
+  test("finds closest container without textual placeholder", () => {
+    const { instances } = renderData(
+      <$.Body ws:id="bodyId">
+        <$.Paragraph ws:id="paragraphId"></$.Paragraph>
+      </$.Body>
+    );
+    $instances.set(instances);
+    selectInstance(["paragraphId", "bodyId"]);
+    expect(findClosestInsertable(newBoxFragment)).toEqual({
+      parentSelector: ["bodyId"],
+      position: 1,
+    });
+  });
+
+  test("finds closest container even with when parent has placeholder", () => {
+    const { instances } = renderData(
+      <$.Body ws:id="bodyId">
+        <$.Paragraph ws:id="paragraphId">
+          <$.Box ws:id="spanId" tag="span"></$.Box>
+        </$.Paragraph>
+      </$.Body>
+    );
+    $instances.set(instances);
+    selectInstance(["boxId", "paragraphId", "bodyId"]);
+    expect(findClosestInsertable(newBoxFragment)).toEqual({
+      parentSelector: ["paragraphId", "bodyId"],
+      position: 0,
     });
   });
 

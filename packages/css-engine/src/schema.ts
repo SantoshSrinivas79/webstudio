@@ -1,13 +1,18 @@
 import { z } from "zod";
 import type {
-  Property as GeneratedProperty,
+  CamelCasedProperty,
+  HyphenatedProperty,
   Unit as GeneratedUnit,
 } from "./__generated__/types";
 import { toValue, type TransformValue } from "./core/to-value";
 
 export type CustomProperty = `--${string}`;
 
-export type StyleProperty = GeneratedProperty | CustomProperty;
+export type StyleProperty = CamelCasedProperty | CustomProperty;
+
+export type CssProperty = HyphenatedProperty | CustomProperty;
+
+export type CssStyleMap = Map<CssProperty, StyleValue>;
 
 const Unit = z.string() as z.ZodType<GeneratedUnit | "number">;
 
@@ -104,6 +109,10 @@ export const InvalidValue = z.object({
 });
 export type InvalidValue = z.infer<typeof InvalidValue>;
 
+/**
+ * Use GuaranteedInvalidValue if you need a temp placeholder before user enters a value
+ * @deprecated
+ */
 const UnsetValue = z.object({
   type: z.literal("unset"),
   value: z.literal(""),

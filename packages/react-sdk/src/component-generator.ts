@@ -6,6 +6,8 @@ import type {
   DataSources,
   Prop,
   DataSource,
+  WsComponentMeta,
+  IndexesWithinAncestors,
 } from "@webstudio-is/sdk";
 import {
   parseComponentName,
@@ -16,9 +18,9 @@ import {
   blockTemplateComponent,
   collectionComponent,
   descendantComponent,
+  getIndexesWithinAncestors,
 } from "@webstudio-is/sdk";
 import { indexAttribute, isAttributeNameSafe, showAttribute } from "./props";
-import type { IndexesWithinAncestors } from "./instance-utils";
 
 /**
  * (arg1) => {
@@ -104,7 +106,8 @@ const generatePropValue = ({
     prop.type === "number" ||
     prop.type === "boolean" ||
     prop.type === "string[]" ||
-    prop.type === "json"
+    prop.type === "json" ||
+    prop.type === "animationAction"
   ) {
     return JSON.stringify(prop.value);
   }
@@ -390,7 +393,7 @@ export const generateWebstudioComponent = ({
   instances,
   props,
   dataSources,
-  indexesWithinAncestors,
+  metas,
   classesMap,
 }: {
   scope: Scope;
@@ -400,35 +403,39 @@ export const generateWebstudioComponent = ({
   instances: Instances;
   props: Props;
   dataSources: DataSources;
-  indexesWithinAncestors: IndexesWithinAncestors;
   classesMap: Map<string, Array<string>>;
+  metas: Map<Instance["component"], WsComponentMeta>;
 }) => {
   const instance = instances.get(rootInstanceId);
-  if (instance === undefined) {
-    return "";
-  }
+  const indexesWithinAncestors = getIndexesWithinAncestors(metas, instances, [
+    rootInstanceId,
+  ]);
 
   const usedDataSources: DataSources = new Map();
-  const generatedJsx = generateJsxElement({
-    context: "expression",
-    scope,
-    instance,
-    props,
-    dataSources,
-    usedDataSources,
-    indexesWithinAncestors,
-    classesMap,
-    children: generateJsxChildren({
+  let generatedJsx = "<></>\n";
+  // instance can be missing when generate xml
+  if (instance) {
+    generatedJsx = generateJsxElement({
+      context: "expression",
       scope,
-      children: instance.children,
-      instances,
+      instance,
       props,
       dataSources,
       usedDataSources,
       indexesWithinAncestors,
       classesMap,
-    }),
-  });
+      children: generateJsxChildren({
+        scope,
+        children: instance.children,
+        instances,
+        props,
+        dataSources,
+        usedDataSources,
+        indexesWithinAncestors,
+        classesMap,
+      }),
+    });
+  }
 
   let generatedProps = "";
   let generatedParameters = "";

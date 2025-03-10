@@ -10,6 +10,7 @@ import type {
   KeywordValue,
   RgbValue,
   VarValue,
+  CssProperty,
 } from "@webstudio-is/css-engine";
 import {
   Popover,
@@ -174,7 +175,7 @@ type ColorPickerProps = {
   value: StyleValue;
   currentColor: StyleValue;
   getOptions?: () => Array<KeywordValue | VarValue>;
-  property: StyleProperty;
+  property: StyleProperty | CssProperty;
   disabled?: boolean;
 };
 
@@ -215,6 +216,7 @@ export const ColorPopover = ({
         <ColorThumb
           color={styleValueToRgbaColor(value)}
           css={{ margin: theme.spacing[2] }}
+          interactive={true}
           tabIndex={-1}
         />
       </PopoverTrigger>

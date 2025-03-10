@@ -16,7 +16,8 @@ import {
   useCombobox,
 } from "@webstudio-is/design-system";
 import {
-  properties as propertiesData,
+  propertiesData,
+  shorthandProperties,
   keywordValues,
   propertyDescriptions,
   parseCssValue,
@@ -25,10 +26,14 @@ import {
   cssWideKeywords,
   generateStyleMap,
   hyphenateProperty,
+  mergeStyles,
   toValue,
   type StyleProperty,
 } from "@webstudio-is/css-engine";
-import { deleteProperty, setProperty } from "../../shared/use-style-data";
+import {
+  deleteProperty,
+  setProperty,
+} from "../../features/style-panel/shared/use-style-data";
 import { composeEventHandlers } from "~/shared/event-utils";
 import { parseStyleInput } from "./parse-style-input";
 
@@ -49,9 +54,17 @@ const getAutocompleteItems = () => {
     return autoCompleteItems;
   }
   for (const property in propertiesData) {
+    const hyphenatedProperty = hyphenateProperty(property);
+    autoCompleteItems.push({
+      property: hyphenatedProperty,
+      label: hyphenatedProperty,
+    });
+  }
+
+  for (const property of shorthandProperties) {
     autoCompleteItems.push({
       property,
-      label: hyphenateProperty(property),
+      label: property,
     });
   }
 
@@ -63,10 +76,11 @@ const getAutocompleteItems = () => {
       if (ignoreValues.has(value)) {
         continue;
       }
+      const hyphenatedProperty = hyphenateProperty(property);
       autoCompleteItems.push({
-        property,
+        property: hyphenatedProperty,
         value,
-        label: `${hyphenateProperty(property)}: ${value}`,
+        label: `${hyphenatedProperty}: ${value}`,
       });
     }
   }
@@ -91,21 +105,23 @@ const matchOrSuggestToCreate = (
   matched.length = Math.min(matched.length, 100);
 
   if (matched.length === 0) {
-    const parsedStyles = parseStyleInput(search);
+    const parsedStyleMap = parseStyleInput(search);
+    const styleMap = mergeStyles(parsedStyleMap);
+
     // When parsedStyles is more than one, user entered a shorthand.
     // We will suggest to insert their shorthand first.
-    if (parsedStyles.length > 1) {
+    if (styleMap.size > 1) {
       matched.push({
         property: search,
         label: `Create "${search}"`,
       });
     }
     // Now we will suggest to insert each longhand separately.
-    for (const style of parsedStyles) {
+    for (const [property, value] of styleMap) {
       matched.push({
-        property: style.property,
-        value: toValue(style.value),
-        label: `Create "${generateStyleMap(new Map([[style.property, style.value]]))}"`,
+        property,
+        value: toValue(value),
+        label: `Create "${generateStyleMap(new Map([[property, value]]))}"`,
       });
     }
   }
@@ -114,13 +130,12 @@ const matchOrSuggestToCreate = (
 };
 
 /**
- *
  * Advanced search control supports following interactions
  *
- * find property
- * create custom property
- * submit css declarations
- * paste css declarations
+ * - find property
+ * - create custom property
+ * - submit css declarations
+ * - paste css declarations
  *
  */
 export const AddStyleInput = forwardRef<
@@ -232,7 +247,6 @@ export const AddStyleInput = forwardRef<
         <ComboboxAnchor>
           <InputField
             {...inputProps}
-            autoFocus
             onFocus={onFocus}
             onBlur={handleBlur}
             inputRef={forwardedRef}
@@ -248,7 +262,6 @@ export const AddStyleInput = forwardRef<
                 <ComboboxListboxItem
                   {...combobox.getItemProps({ item, index })}
                   key={index}
-                  asChild
                 >
                   <Text
                     variant="labelsSentenceCase"
