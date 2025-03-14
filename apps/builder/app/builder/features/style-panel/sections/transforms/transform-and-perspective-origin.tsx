@@ -1,13 +1,16 @@
-import { propertyDescriptions, propertySyntaxes } from "@webstudio-is/css-data";
+import {
+  camelCaseProperty,
+  propertyDescriptions,
+  propertySyntaxes,
+} from "@webstudio-is/css-data";
 import { Flex, Grid, PositionGrid } from "@webstudio-is/design-system";
 import {
   KeywordValue,
   StyleValue,
   TupleValue,
   UnitValue,
-  type StyleProperty,
+  type CssProperty,
 } from "@webstudio-is/css-engine";
-import { styleConfigByName } from "../../shared/configs";
 import { useMemo } from "react";
 import { extractTransformOrPerspectiveOriginValues } from "./transform-extractors";
 import { CssValueInputContainer } from "../../shared/css-value-input";
@@ -17,13 +20,14 @@ import {
 } from "../../shared/use-style-data";
 import { PropertyInlineLabel, PropertyLabel } from "../../property-label";
 import { useComputedStyleDecl } from "../../shared/model";
+import { humanizeString } from "~/shared/string-utils";
 
 // Fake properties to use in the CssValueInputContainer
 // x, y axis takes length | percentage | keyword
 // z axis takes length
-const fakePropertyX: StyleProperty = "backgroundPositionX";
-const fakePropertyY: StyleProperty = "backgroundPositionY";
-const fakePropertyZ: StyleProperty = "outlineOffset";
+const fakePropertyX: CssProperty = "background-position-x";
+const fakePropertyY: CssProperty = "background-position-y";
+const fakePropertyZ: CssProperty = "outline-offset";
 
 const keywordToValue: Record<string, number> = {
   left: 0,
@@ -52,11 +56,10 @@ export const calculatePositionFromOrigin = (value: StyleValue | undefined) => {
 export const TransformAndPerspectiveOrigin = ({
   property,
 }: {
-  property: StyleProperty;
+  property: CssProperty;
 }) => {
   const styleDecl = useComputedStyleDecl(property);
   const value = styleDecl.cascadedValue;
-  const { label } = styleConfigByName(property);
   const origin = useMemo((): {
     x: KeywordValue | UnitValue;
     y: KeywordValue | UnitValue;
@@ -142,7 +145,7 @@ export const TransformAndPerspectiveOrigin = ({
       ],
     };
 
-    if (property === "transformOrigin" && origin.z !== undefined) {
+    if (property === "transform-origin" && origin.z !== undefined) {
       value.value.push(origin.z);
     }
 
@@ -152,8 +155,8 @@ export const TransformAndPerspectiveOrigin = ({
   return (
     <Grid gap="2">
       <PropertyLabel
-        label={label}
-        description={propertyDescriptions[property]}
+        label={humanizeString(property)}
+        description={propertyDescriptions[camelCaseProperty(property)]}
         properties={[property]}
       />
       <Flex gap="6">
@@ -171,10 +174,10 @@ export const TransformAndPerspectiveOrigin = ({
               <PropertyInlineLabel
                 label="X"
                 title={
-                  property === "transformOrigin" ? "X Offset" : "X Position"
+                  property === "transform-origin" ? "X Offset" : "X Position"
                 }
                 description={
-                  property === "transformOrigin"
+                  property === "transform-origin"
                     ? propertySyntaxes.transformOriginY
                     : propertySyntaxes.perspectiveOriginX
                 }
@@ -198,10 +201,10 @@ export const TransformAndPerspectiveOrigin = ({
               <PropertyInlineLabel
                 label="Y"
                 title={
-                  property === "transformOrigin" ? "Y Offset" : "Y Position"
+                  property === "transform-origin" ? "Y Offset" : "Y Position"
                 }
                 description={
-                  property === "transformOrigin"
+                  property === "transform-origin"
                     ? propertySyntaxes.transformOriginY
                     : propertySyntaxes.perspectiveOriginY
                 }
@@ -217,7 +220,7 @@ export const TransformAndPerspectiveOrigin = ({
                 }
               />
             </Grid>
-            {property === "transformOrigin" && origin.z !== undefined && (
+            {property === "transform-origin" && origin.z !== undefined && (
               <Grid
                 gap="2"
                 align="center"

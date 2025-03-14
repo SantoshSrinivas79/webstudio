@@ -25,7 +25,6 @@ import {
 import {
   cssWideKeywords,
   generateStyleMap,
-  hyphenateProperty,
   mergeStyles,
   toValue,
   type StyleProperty,
@@ -37,7 +36,12 @@ import {
 import { composeEventHandlers } from "~/shared/event-utils";
 import { parseStyleInput } from "./parse-style-input";
 
-type SearchItem = { property: string; label: string; value?: string };
+type SearchItem = {
+  property: string;
+  label: string;
+  value?: string;
+  key: string;
+};
 
 const autoCompleteItems: Array<SearchItem> = [];
 
@@ -54,15 +58,18 @@ const getAutocompleteItems = () => {
     return autoCompleteItems;
   }
   for (const property in propertiesData) {
-    const hyphenatedProperty = hyphenateProperty(property);
     autoCompleteItems.push({
-      property: hyphenatedProperty,
-      label: hyphenatedProperty,
+      // Allow matching "gr te co" -> "grid-template-columns"
+      key: property.replaceAll("-", " "),
+      property,
+      label: property,
     });
   }
 
   for (const property of shorthandProperties) {
     autoCompleteItems.push({
+      // Allow matching "gr te co" -> "grid-template-columns"
+      key: property.replaceAll("-", " "),
       property,
       label: property,
     });
@@ -70,17 +77,17 @@ const getAutocompleteItems = () => {
 
   const ignoreValues = new Set([...cssWideKeywords, ...keywordValues.color]);
 
-  for (const property in keywordValues) {
-    const values = keywordValues[property as keyof typeof keywordValues];
-    for (const value of values) {
+  for (const [property, values] of Object.entries(keywordValues)) {
+    for (const value of values ?? []) {
       if (ignoreValues.has(value)) {
         continue;
       }
-      const hyphenatedProperty = hyphenateProperty(property);
       autoCompleteItems.push({
-        property: hyphenatedProperty,
+        // Allow matching "gr te co" -> "grid-template-columns"
+        key: `${property.replaceAll("-", " ")} ${value}`,
+        property,
         value,
-        label: `${hyphenatedProperty}: ${value}`,
+        label: `${property}: ${value}`,
       });
     }
   }
@@ -92,13 +99,9 @@ const getAutocompleteItems = () => {
   return autoCompleteItems;
 };
 
-const matchOrSuggestToCreate = (
-  search: string,
-  items: Array<SearchItem>,
-  itemToString: (item: SearchItem) => string
-) => {
-  const matched = matchSorter(items, search, {
-    keys: [itemToString],
+const matchOrSuggestToCreate = (search: string, items: Array<SearchItem>) => {
+  const matched = matchSorter(items, search.replaceAll("-", " "), {
+    keys: ["key"],
   });
 
   // Limit the array to 100 elements
@@ -112,6 +115,7 @@ const matchOrSuggestToCreate = (
     // We will suggest to insert their shorthand first.
     if (styleMap.size > 1) {
       matched.push({
+        key: "",
         property: search,
         label: `Create "${search}"`,
       });
@@ -119,6 +123,7 @@ const matchOrSuggestToCreate = (
     // Now we will suggest to insert each longhand separately.
     for (const [property, value] of styleMap) {
       matched.push({
+        key: "",
         property,
         value: toValue(value),
         label: `Create "${generateStyleMap(new Map([[property, value]]))}"`,
@@ -150,6 +155,7 @@ export const AddStyleInput = forwardRef<
   const [item, setItem] = useState<SearchItem>({
     property: "",
     label: "",
+    key: "",
   });
   const highlightedItemRef = useRef<SearchItem>();
 
@@ -160,7 +166,13 @@ export const AddStyleInput = forwardRef<
     defaultHighlightedIndex: 0,
     getItemProps: () => ({ text: "sentence" }),
     match: matchOrSuggestToCreate,
-    onChange: (value) => setItem({ property: value ?? "", label: value ?? "" }),
+    onChange: (input) => {
+      return setItem({
+        property: input ?? "",
+        label: input ?? "",
+        key: input ?? "",
+      });
+    },
     onItemSelect: (item) => {
       clear();
       // When there is no value, property can be:
@@ -198,7 +210,7 @@ export const AddStyleInput = forwardRef<
   const inputProps = combobox.getInputProps();
 
   const clear = () => {
-    setItem({ property: "", label: "" });
+    setItem({ property: "", label: "", key: "" });
   };
 
   const handleEnter = (event: KeyboardEvent) => {

@@ -1,13 +1,15 @@
 import type { HtmlTags } from "html-tags";
-import { html, propertiesData } from "@webstudio-is/css-data";
 import {
-  type StyleValue,
-  type StyleProperty,
-  type VarFallback,
-  type VarValue,
-  type UnparsedValue,
-  type CssProperty,
-  hyphenateProperty,
+  camelCaseProperty,
+  html,
+  propertiesData,
+} from "@webstudio-is/css-data";
+import type {
+  StyleValue,
+  VarFallback,
+  VarValue,
+  UnparsedValue,
+  CssProperty,
 } from "@webstudio-is/css-engine";
 import {
   type Instance,
@@ -126,7 +128,7 @@ const getCascadedValue = ({
   instanceId: Instance["id"];
   styleSourceId?: StyleDecl["styleSourceId"];
   state?: StyleDecl["state"];
-  property: StyleProperty;
+  property: CssProperty;
 }) => {
   const {
     styles,
@@ -142,14 +144,13 @@ const getCascadedValue = ({
   let selectedIndex = -1;
   // store the source of latest value
   let source: StyleValueSource = { name: "default" };
-  const hyphenatedProperty = hyphenateProperty(property);
 
   // https://drafts.csswg.org/css-cascade-5/#declared
   const declaredValues: StyleValue[] = [];
 
   // browser styles
   if (tag) {
-    const key = `${tag}:${hyphenatedProperty}`;
+    const key = `${tag}:${property}`;
     const browserValue = html.get(key);
     if (browserValue) {
       declaredValues.push(browserValue);
@@ -175,7 +176,7 @@ const getCascadedValue = ({
         component,
         tag,
         state,
-        property: hyphenatedProperty,
+        property,
       });
       const styleValue = presetStyles.get(key);
       if (styleValue) {
@@ -195,7 +196,7 @@ const getCascadedValue = ({
           styleSourceId,
           breakpointId,
           state,
-          property,
+          property: camelCaseProperty(property),
         });
         const styleDecl = styles.get(key);
         if (
@@ -280,11 +281,14 @@ const substituteVars = (
 };
 
 export type ComputedStyleDecl = {
-  property: StyleProperty;
+  property: CssProperty;
   source: StyleValueSource;
   cascadedValue: StyleValue;
   computedValue: StyleValue;
   usedValue: StyleValue;
+  // @todo We will delete it once we have added additional filters to advanced panel and
+  // don't need to differentiate this any more.
+  listed?: boolean;
 };
 
 /**
@@ -303,16 +307,16 @@ export const getComputedStyleDecl = ({
   instanceSelector?: InstanceSelector;
   styleSourceId?: StyleDecl["styleSourceId"];
   state?: StyleDecl["state"];
-  property: StyleProperty;
+  property: CssProperty;
   /**
    * for internal use only
    */
-  customPropertiesGraph?: Map<Instance["id"], Set<StyleProperty>>;
+  customPropertiesGraph?: Map<Instance["id"], Set<CssProperty>>;
 }): ComputedStyleDecl => {
   const isCustomProperty = property.startsWith("--");
   const propertyData = isCustomProperty
     ? customPropertyData
-    : (propertiesData[hyphenateProperty(property)] ?? invalidPropertyData);
+    : (propertiesData[property] ?? invalidPropertyData);
   const inherited = propertyData.inherited;
   const initialValue: StyleValue = propertyData.initial;
   let computedValue: StyleValue = initialValue;
@@ -341,6 +345,7 @@ export const getComputedStyleDecl = ({
       state,
       property,
     });
+    const inheritedCascadedValue = cascadedValue;
     cascadedValue = cascaded?.value;
     source = cascaded?.source ?? { name: "default" };
 
@@ -371,6 +376,7 @@ export const getComputedStyleDecl = ({
     // defaulting https://drafts.csswg.org/css-cascade-5/#defaulting
     else if (inherited) {
       specifiedValue = inheritedValue;
+      cascadedValue = inheritedCascadedValue;
       source = inheritedSource;
     } else {
       specifiedValue = initialValue;
@@ -383,7 +389,7 @@ export const getComputedStyleDecl = ({
     // check whether the property was used with parent node
     // to support var(--var1), var(--var1) layers
     const parentUsedCustomProperties = usedCustomProperties;
-    usedCustomProperties = new Set<StyleProperty>(usedCustomProperties);
+    usedCustomProperties = new Set<CssProperty>(usedCustomProperties);
     customPropertiesGraph.set(instanceId, usedCustomProperties);
     computedValue = substituteVars(computedValue, (varValue) => {
       const customProperty = `--${varValue.value}` as const;
@@ -435,8 +441,8 @@ export const getComputedStyleDecl = ({
     usedValue = currentColor.usedValue;
   }
 
-  // fallback to inherited value
-  cascadedValue ??= computedValue;
+  // fallback to initial value
+  cascadedValue ??= initialValue;
 
   return { property, source, cascadedValue, computedValue, usedValue };
 };
